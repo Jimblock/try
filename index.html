@@ -8,21 +8,33 @@
         /* --- START OF CSS --- */
         body {
             margin: 0;
-            padding: 20px;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             font-family: Arial, sans-serif;
+
+            background-image: url('image10.jpg');
+            background-size: cover;
+            background-position: center center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }
+
+        .game-container {
+            padding: 20px;
+            /* background-color: rgba(255, 255, 255, 0.1); /* Optional overlay */
+            border-radius: 10px;
+            max-width: 800px;
+            width: calc(100% - 40px);
+            box-sizing: border-box;
         }
 
         .game-board {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 15px;
-            max-width: 800px;
-            width: 100%;
         }
 
         .card {
@@ -58,9 +70,8 @@
 
         .card-back {
             background-color: #34495e;
-            /* Make sure 'mystic-symbol.svg' is in the same folder or update path */
-            background-image: url('mystic-symbol.svg');
-            background-size: 80%;
+            background-image: url('image9.jpg');
+            background-size: cover;
             background-repeat: no-repeat;
             background-position: center;
         }
@@ -74,7 +85,7 @@
         }
 
         .modal {
-            display: none; /* Initially hidden */
+            display: none;
             position: fixed;
             z-index: 1000;
             left: 0;
@@ -92,16 +103,21 @@
             border-radius: 10px;
             text-align: center;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 90%;
+            word-wrap: break-word;
         }
         /* --- END OF CSS --- */
     </style>
 </head>
 <body>
-    <div class="game-board" id="gameBoard"></div>
+    <div class="game-container">
+        <div class="game-board" id="gameBoard"></div>
+    </div>
+
     <div id="winModal" class="modal">
         <div class="modal-content">
-            <h2>You won</h2>
-            <p>To claim your prize: 0033602255155</p>
+            <h2>Vous avez gagné !</h2> <!-- Changed to French -->
+            <p id="winMessageText">Chargement du message...</p> <!-- Changed to French -->
         </div>
     </div>
 
@@ -110,70 +126,130 @@
         document.addEventListener('DOMContentLoaded', () => {
             const gameBoard = document.getElementById('gameBoard');
             const winModal = document.getElementById('winModal');
+            const winMessageTextElement = document.getElementById('winMessageText');
 
-            // Ensure these image paths are correct relative to the index.html file
+            let finalWinMessage = "Félicitations ! Vous avez terminé le jeu !"; // Default message in French
+
+            // Fetch the custom win message from 01.TXT
+            fetch('01.TXT') // MODIFIED: Changed filename to 01.TXT
+                .then(response => {
+                    if (!response.ok) {
+                        // Handle specific errors like 404 Not Found more gracefully
+                        if (response.status === 404) {
+                            console.error('Le fichier 01.TXT est introuvable. Utilisation du message par défaut.');
+                        } else {
+                            console.error('Erreur réseau lors du chargement de 01.TXT:', response.statusText);
+                        }
+                        throw new Error('Network response was not ok'); // Keep throwing to use default
+                    }
+                    return response.text();
+                })
+                .then(text => {
+                    if (text.trim() !== "") {
+                        finalWinMessage = text.trim();
+                    } else {
+                        console.warn('Le fichier 01.TXT est vide. Utilisation du message par défaut.');
+                    }
+                })
+                .catch(error => {
+                    // Error already logged, default message will be used
+                    console.log('Utilisation du message de victoire par défaut à cause d\'une erreur de chargement.');
+                });
+
             const cardImages = [
-                './image1.jpg',
-                './image2.jpg',
-                './image3.jpg',
-                './image4.jpg',
-                './image5.jpg',
-                './image6.jpg',
-                './image7.jpg',
-                './image8.jpg'
+                './image1.jpg', './image2.jpg', './image3.jpg', './image4.jpg',
+                './image5.jpg', './image6.jpg', './image7.jpg', './image8.jpg'
             ];
+            const fullCardImages = [...cardImages, ...cardImages];
 
-            const fullCardImages = [...cardImages, ...cardImages]; // Create pairs
+            let flippedCards = [];
+            let matchedPairs = 0;
+            let lockBoard = false;
 
-            // Fisher-Yates (Knuth) Shuffle Algorithm
+            let bottomRightCardForCheat = null;
+            let consecutiveClicksOnBottomRight = 0;
+            const CHEAT_CLICKS_TO_WIN = 3;
+
             function shuffleArray(array) {
                 for (let i = array.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
-                    [array[i], array[j]] = [array[j], array[i]]; // Swap elements
+                    [array[i], array[j]] = [array[j], array[i]];
                 }
                 return array;
             }
 
-            let flippedCards = []; // Stores the 1 or 2 cards currently flipped
-            let matchedPairs = 0; // Counter for matched pairs
-            let lockBoard = false; // Prevents flipping more than 2 cards at once
+            function triggerWinSequence() {
+                if (winModal.style.display === 'flex') return;
+
+                lockBoard = true;
+                Array.from(gameBoard.children).forEach(cardElement => {
+                    cardElement.classList.add('flipped');
+                    cardElement.classList.add('matched');
+                });
+                matchedPairs = cardImages.length;
+
+                setTimeout(() => {
+                    winMessageTextElement.textContent = finalWinMessage;
+                    winModal.style.display = 'flex';
+                }, 300);
+                consecutiveClicksOnBottomRight = 0;
+            }
 
             function createBoard() {
-                gameBoard.innerHTML = ''; // Clear board if resetting
-                matchedPairs = 0; // Reset counter
-                flippedCards = []; // Reset flipped cards
-                lockBoard = false; // Unlock board
+                gameBoard.innerHTML = '';
+                matchedPairs = 0;
+                flippedCards = [];
+                lockBoard = false;
+                winModal.style.display = 'none';
+                consecutiveClicksOnBottomRight = 0;
 
                 const shuffledImages = shuffleArray(fullCardImages);
 
                 shuffledImages.forEach((imagePath) => {
                     const card = document.createElement('div');
                     card.classList.add('card');
-                    card.setAttribute('data-image', imagePath); // Store image path for matching
-
+                    card.setAttribute('data-image', imagePath);
                     card.innerHTML = `
                         <div class="card-inner">
                             <div class="card-back"></div>
                             <div class="card-front" style="background-image: url('${imagePath}')"></div>
                         </div>
                     `;
-
                     card.addEventListener('click', flipCard);
                     gameBoard.appendChild(card);
                 });
+
+                if (gameBoard.children.length > 0) {
+                    bottomRightCardForCheat = gameBoard.lastElementChild;
+                } else {
+                    bottomRightCardForCheat = null;
+                }
             }
 
             function flipCard() {
-                // Prevent action if board is locked, card is already flipped, or already matched
-                if (lockBoard || this.classList.contains('matched') || this.classList.contains('flipped')) {
+                const clickedCard = this;
+                const isBottomRightClick = (clickedCard === bottomRightCardForCheat);
+
+                if (isBottomRightClick) {
+                    if (winModal.style.display === 'flex') return;
+                    consecutiveClicksOnBottomRight++;
+                    if (consecutiveClicksOnBottomRight >= CHEAT_CLICKS_TO_WIN) {
+                        triggerWinSequence();
+                        return;
+                    }
+                } else {
+                    consecutiveClicksOnBottomRight = 0;
+                }
+
+                if (lockBoard || clickedCard.classList.contains('matched') || clickedCard.classList.contains('flipped')) {
                     return;
                 }
 
-                this.classList.add('flipped');
-                flippedCards.push(this);
+                clickedCard.classList.add('flipped');
+                flippedCards.push(clickedCard);
 
                 if (flippedCards.length === 2) {
-                    lockBoard = true; // Lock board while checking for match
+                    lockBoard = true;
                     checkForMatch();
                 }
             }
@@ -184,35 +260,33 @@
                 const image2 = card2.getAttribute('data-image');
 
                 if (image1 === image2) {
-                    // It's a match!
                     card1.classList.add('matched');
                     card2.classList.add('matched');
                     matchedPairs++;
-                    resetFlippedCards(true); // Reset flipped cards array immediately
+                    resetFlippedCards();
 
-                    // Check for win condition
-                    if (matchedPairs === cardImages.length) { // Win when all pairs are found
+                    if (matchedPairs === cardImages.length) {
                         setTimeout(() => {
-                            winModal.style.display = 'flex'; // Show win modal
-                        }, 1000); // Short delay before showing modal
+                            if (winModal.style.display !== 'flex') {
+                                winMessageTextElement.textContent = finalWinMessage;
+                                winModal.style.display = 'flex';
+                            }
+                        }, 1000);
                     }
                 } else {
-                    // Not a match
-                    // Wait before flipping back
                     setTimeout(() => {
                         card1.classList.remove('flipped');
                         card2.classList.remove('flipped');
-                        resetFlippedCards(false); // Reset flipped cards array after flip back animation
-                    }, 1000); // Time to see the second card
+                        resetFlippedCards();
+                    }, 1000);
                 }
             }
 
-            function resetFlippedCards(isMatch) {
-                 flippedCards = []; // Clear the array
-                 lockBoard = false; // Unlock the board
+            function resetFlippedCards() {
+                 flippedCards = [];
+                 lockBoard = false;
             }
 
-            // Initial setup
             createBoard();
         });
         /* --- END OF JAVASCRIPT --- */
