@@ -99,22 +99,22 @@
 
         .modal-content {
             background-color: white;
-            padding: 30px; /* Peut-être ajuster le padding si seul le texte est présent */
+            padding: 30px;
             border-radius: 10px;
             text-align: center;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             max-width: 90%;
+            max-height: 90vh; /* Pour éviter que le modal ne soit trop grand sur les petits écrans */
+            overflow-y: auto; /* Ajoute une barre de défilement si le contenu est trop long */
             word-wrap: break-word;
-            white-space: pre-wrap;
+            white-space: pre-wrap; /* Pour respecter les sauts de ligne potentiels dans le message */
         }
 
-        /* Si vous voulez que le paragraphe prenne plus de place verticalement
-           ou ait une taille de police spécifique quand il est seul : */
         .modal-content p#winMessageText {
-            margin: 0; /* Enlève les marges par défaut du paragraphe si besoin */
-            font-size: 1.2em; /* Exemple pour agrandir un peu le texte */
+            margin: 0;
+            font-size: 1.1em; /* Taille de police ajustée pour le message */
+            line-height: 1.5; /* Interligne pour une meilleure lisibilité */
         }
-
         /* --- END OF CSS --- */
     </style>
 </head>
@@ -126,7 +126,7 @@
     <div id="winModal" class="modal">
         <div class="modal-content">
             <!-- Le titre <h2> a été enlevé -->
-            <p id="winMessageText">Chargement du message...</p>
+            <p id="winMessageText"></p> <!-- Le texte sera inséré ici par JavaScript -->
         </div>
     </div>
 
@@ -137,33 +137,10 @@
             const winModal = document.getElementById('winModal');
             const winMessageTextElement = document.getElementById('winMessageText');
 
-            let finalWinMessage = "Félicitations ! Vous avez terminé le jeu !"; // Message par défaut
+            // Le message de victoire est maintenant défini directement ici
+            const finalWinMessage = "L'aventure ne fait que commencer. Curieux·se des messages du destin, envoie moi ta citation préférée sur WhatsApp au +41 78 217 10 60 !";
 
-            fetch('01.TXT')
-                .then(response => {
-                    if (!response.ok) {
-                        if (response.status === 404) {
-                            console.error('ERREUR: Le fichier 01.TXT est introuvable. Vérifiez son nom et son emplacement. Message par défaut utilisé.');
-                        } else {
-                            console.error(`ERREUR: Problème réseau lors du chargement de 01.TXT. Statut: ${response.status}. Message par défaut utilisé.`);
-                        }
-                        throw new Error(`Échec du chargement de 01.TXT, statut: ${response.status}`);
-                    }
-                    return response.text();
-                })
-                .then(text => {
-                    if (text && text.trim() !== "") {
-                        finalWinMessage = text.trim();
-                        console.log("Message de victoire chargé depuis 01.TXT.");
-                    } else {
-                        finalWinMessage = "Félicitations ! Le fichier 01.TXT est vide. Beau travail quand même !";
-                        console.warn("ATTENTION: Le fichier 01.TXT est vide. Message par défaut (modifié) utilisé.");
-                    }
-                })
-                .catch(error => {
-                    console.error("ERREUR GLOBALE lors de la tentative de chargement de 01.TXT:", error.message);
-                    console.log("Utilisation du message de victoire par défaut car 01.TXT n'a pas pu être chargé.");
-                });
+            // La partie "fetch" pour charger 01.TXT a été enlevée.
 
             const cardImages = [
                 './image1.jpg', './image2.jpg', './image3.jpg', './image4.jpg',
@@ -198,7 +175,7 @@
                 matchedPairs = cardImages.length;
 
                 setTimeout(() => {
-                    winMessageTextElement.textContent = finalWinMessage;
+                    winMessageTextElement.textContent = finalWinMessage; // Utilise le message défini ci-dessus
                     winModal.style.display = 'flex';
                 }, 300);
                 consecutiveClicksOnBottomRight = 0;
@@ -277,7 +254,7 @@
                     if (matchedPairs === cardImages.length) {
                         setTimeout(() => {
                             if (winModal.style.display !== 'flex') {
-                                winMessageTextElement.textContent = finalWinMessage;
+                                winMessageTextElement.textContent = finalWinMessage; // Utilise le message défini ci-dessus
                                 winModal.style.display = 'flex';
                             }
                         }, 1000);
